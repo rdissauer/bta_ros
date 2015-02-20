@@ -4,6 +4,7 @@ project(bta_ros)
 set(2DSENSOR)
 ## check required modules
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake_modules")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D PLAT_LINUX" )
 find_package(bta REQUIRED)
 
 if (2DSENSOR)
