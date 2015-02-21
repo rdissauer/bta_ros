@@ -15,8 +15,10 @@
 #uartTransmitterAddress:
 #uartReceiverAddress
 #serialNumber:
-#calibFileName:
-frameMode: 2
+#calibFileName: 
+#zFactorsFileName: 
+#wigglingFileName: 
+frameMode: 6  # 2-DistAmpFlags // 4-XYZAmp // 6-XYZAmpFlags
 #infoEvent:
 #frameArrived:
 #frameQueueMode:

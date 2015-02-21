@@ -64,7 +64,7 @@ namespace bta_ros
 
 	BtaRos::~BtaRos() 
 	{
-		printf("clossing!!!!!");
+		ROS_DEBUG("closing!!!!!");
 		close();
 	}
 
@@ -72,7 +72,7 @@ namespace bta_ros
 	{
 		ROS_DEBUG("Close called");
 		if (BTAisConnected(handle_)) {
-			ROS_DEBUG("Clossing..");
+			ROS_DEBUG("Closing..");
 			BTA_Status status;
 			status = BTAclose(&handle_);
 			printf("done: %d \n", status);
@@ -182,6 +182,11 @@ namespace bta_ros
       config_.Write_reg = false;
 
     }
+		usValue = (uint32_t)config_.Filter;
+		status = BTAwriteRegister(handle_, BILATERAL_FILTER, &usValue, 0);
+		if (status != BTA_StatusOk) {
+			ROS_WARN_STREAM("Could not write reg 0x1E0: " << ". Status: " << status);
+		}
 
 	}
 
@@ -501,6 +506,15 @@ namespace bta_ros
 
 		nh_private_.getParam(nodeName_+"/calibFileName",calibFileName_);
 		config_.calibFileName = (uint8_t *)calibFileName_.c_str();
+		ROS_DEBUG_STREAM("Lense Calibration file: " << config_.calibFileName);
+
+		nh_private_.getParam(nodeName_+"/zFactorsFileName",zFactorsFileName_);
+		config_.zFactorsFileName = (uint8_t *)zFactorsFileName_.c_str();
+		ROS_DEBUG_STREAM("z Factors file: " << config_.zFactorsFileName);
+
+		nh_private_.getParam(nodeName_+"/wigglingFileName",wigglingFileName_);
+		config_.wigglingFileName = (uint8_t *)wigglingFileName_.c_str();
+		ROS_DEBUG_STREAM("wiggling file: " << config_.wigglingFileName);
 	
 		int32_t frameMode;
 		if (nh_private_.getParam(nodeName_+"/frameMode",frameMode))
@@ -555,10 +569,10 @@ namespace bta_ros
 		ROS_DEBUG_STREAM("Retrieved device info: \n" 
 			<< "deviceType: " << deviceInfo->deviceType << "\n"
 			<< "serialNumber: " << deviceInfo->serialNumber << "\n"
-			<< "firmwareVersionMajor: " << deviceInfo->firmwareVersionMajor << "\n"
-			<< "firmwareVersionMinor: " << deviceInfo->firmwareVersionMinor << "\n"
-			<< "firmwareVersionNonFunc: " << deviceInfo->firmwareVersionNonFunc 
-			<< "\n");
+			<< "firmwareVersion: " 
+			<< deviceInfo->firmwareVersionMajor << "."
+			<< deviceInfo->firmwareVersionMinor << "."
+			<< deviceInfo->firmwareVersionNonFunc << "\n");
 
 		ROS_INFO_STREAM("Service running: " << (int)BTAisRunning(handle_));
 		ROS_INFO_STREAM("Connection up: " << (int)BTAisConnected(handle_));
@@ -570,6 +584,7 @@ namespace bta_ros
 	int BtaRos::initialize() 
 	{
 
+		reconfigure_server_.reset(new ReconfigureServer(nh_private_));
 		/*
 		 * Camera config
 		 */
@@ -581,13 +596,13 @@ namespace bta_ros
 		/*
 		 * Camera Initialization
 		 */
-		ROS_DEBUG_STREAM("Config Readed sucessfully");
+		ROS_DEBUG_STREAM("Config Read sucessfully");
 		
 		BTA_Status status;
 		if (connectCamera() < 0)
 			return -1;
 		
-		reconfigure_server_.reset(new ReconfigureServer(nh_private_));
+		
 		reconfigure_server_->setCallback(boost::bind(&BtaRos::callback, this, _1, _2));
 		
 		while (!config_init_)
@@ -614,8 +629,8 @@ namespace bta_ros
 					" not found. Using an uncalibrated config_.");
 			} 	
 		
-			pub_amp_ = it_.advertiseCamera(nodeName_ + "/tof_camera/image_raw", 1);
-			pub_dis_ = it_.advertiseCamera(nodeName_ + "/tof_camera/compressedDepth", 1);
+			pub_amp_ = it_.advertiseCamera(nodeName_ + "/tof_camera/amplitudes", 1);
+			pub_dis_ = it_.advertiseCamera(nodeName_ + "/tof_camera/depth", 1);
 			pub_xyz_ = nh_private_.advertise<sensor_msgs::PointCloud2> (nodeName_ + "/tof_camera/point_cloud_xyz", 1);
 	
 			//sub_amp_ = nh_private_.subscribe("bta_node_amp", 1, &BtaRos::ampCb, this);

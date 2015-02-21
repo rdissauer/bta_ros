@@ -100,7 +100,7 @@ namespace bta_ros {
 		// Variables needed for config
 		uint8_t udpDataIpAddr_[6], udpControlOutIpAddr_[6],
 		udpControlInIpAddr_[6], tcpDeviceIpAddr_[6];
-		std::string uartPortName_, calibFileName_;
+		std::string uartPortName_, calibFileName_, zFactorsFileName_, wigglingFileName_;
 	
 		BTA_Handle handle_;
 		BTA_Config config_;
