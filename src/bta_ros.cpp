@@ -42,6 +42,10 @@
 
 #include <bta_ros/bta_ros.hpp>
 
+// Register Maps
+#include <bta_ros/register_map_p100.h>
+#include <bta_ros/register_map_m100.h>
+
 namespace bta_ros 
 {
 
@@ -91,6 +95,8 @@ namespace bta_ros
 		uint32_t usValue;
 
 		if (!config_init_) {
+			//*****************
+			// Integration Time */
 			if (nh_private_.getParam(nodeName_+"/integrationTime",it)) {
 				usValue = (uint32_t)it;
 				status = BTAsetIntegrationTime(handle_, usValue);
@@ -105,6 +111,8 @@ namespace bta_ros
 			}
 			nh_private_.getParam(nodeName_+"/integrationTime",config_.Integration_Time);
 			
+			//***********
+			// Frame Rate */
 			if (nh_private_.getParam(nodeName_+"/frameRate",fr)) {
 				status = BTAsetFrameRate(handle_, fr);
 				if (status != BTA_StatusOk)
@@ -119,6 +127,71 @@ namespace bta_ros
 					nh_private_.setParam(nodeName_+"/frameRate", fr);
 			}
 			nh_private_.getParam(nodeName_+"/frameRate",config_.Frame_rate);
+			
+			//*********************
+			// Modulation Frequency 0 */
+			if (nh_private_.getParam(nodeName_+"/pll0",it)) {
+				usValue = (uint32_t)it;
+				status = BTAwriteRegister(handle_, MODULATION_FREQUENCY_0, &usValue, 0);
+				if (status != BTA_StatusOk)
+					ROS_WARN_STREAM("Error setting PLL0: " << status << "---------------");	
+			} else {
+				status = BTAreadRegister(handle_, MODULATION_FREQUENCY_0, &usValue, 0);
+				if (status != BTA_StatusOk)
+					ROS_WARN_STREAM("Error reading PLL0: " << status << "---------------");
+				else
+					nh_private_.setParam(nodeName_+"/pll0", (int)usValue);
+			}
+			nh_private_.getParam(nodeName_+"/pll0",config_.PLL0);
+			
+			//*********************
+			// Modulation Frequency 1 */
+			if (nh_private_.getParam(nodeName_+"/pll1",it)) {
+				usValue = (uint32_t)it;
+				status = BTAwriteRegister(handle_, MODULATION_FREQUENCY_1, &usValue, 0);
+				if (status != BTA_StatusOk)
+					ROS_WARN_STREAM("Error setting PLL1: " << status << "---------------");	
+			} else {
+				status = BTAreadRegister(handle_, MODULATION_FREQUENCY_1, &usValue, 0);
+				if (status != BTA_StatusOk)
+					ROS_WARN_STREAM("Error reading PLL1: " << status << "---------------");
+				else
+					nh_private_.setParam(nodeName_+"/pll1", (int)usValue);
+			}
+			nh_private_.getParam(nodeName_+"/pll1",config_.PLL1);
+			
+			//*********************
+			// Amplitude Treshold */
+			if (nh_private_.getParam(nodeName_+"/ampTreshold",it)) {
+				usValue = (uint32_t)it;
+				status = BTAwriteRegister(handle_, AMPLITUDE_TRESHOLD, &usValue, 0);
+				if (status != BTA_StatusOk)
+					ROS_WARN_STREAM("Error setting Amplitude Treshold: " << status << "---------------");
+			} else {
+				status = BTAreadRegister(handle_, AMPLITUDE_TRESHOLD, &usValue, 0);
+				if (status != BTA_StatusOk)
+					ROS_WARN_STREAM("Error reading Amplitude Treshold: " << status << "---------------");
+				else
+					nh_private_.setParam(nodeName_+"/ampTreshold", (int)usValue);
+			}
+			nh_private_.getParam(nodeName_+"/ampTreshold",config_.Treshold_L);
+
+			//*********************
+			// Saturation Treshold */
+			if (nh_private_.getParam(nodeName_+"/saturationTreshold",it)) {
+				usValue = (uint32_t)it | ((uint32_t)it << 16);
+				status = BTAwriteRegister(handle_, SATURATION_TRESHOLD, &usValue, 0);
+				if (status != BTA_StatusOk)
+					ROS_WARN_STREAM("Error setting Saturation Treshold: " << status << "---------------");
+			} else {
+				status = BTAreadRegister(handle_, SATURATION_TRESHOLD, &usValue, 0);
+				if (status != BTA_StatusOk)
+					ROS_WARN_STREAM("Error reading Saturation Treshold: " << status << "---------------");
+				else
+					nh_private_.setParam(nodeName_+"/saturationTreshold", (int)(0x0000FFFF & usValue));
+			}
+			nh_private_.getParam(nodeName_+"/saturationTreshold",config_.Treshold_H);
+
             config_init_ = true;
             return;
 		}
@@ -143,45 +216,87 @@ namespace bta_ros
 				else
 					nh_private_.setParam(nodeName_+"/frameRate", config_.Frame_rate);
 		}
+		
+		nh_private_.getParam(nodeName_+"/pll0",it);
+		if(it != config_.PLL0) {
+			usValue = (uint32_t)config_.PLL0;
+			status = BTAwriteRegister(handle_, MODULATION_FREQUENCY_0, &usValue, 0);
+				if (status != BTA_StatusOk)
+					ROS_WARN_STREAM("Error setting PLL0: " << status << "---------------");	
+				else
+					nh_private_.setParam(nodeName_+"/pll0", config_.PLL0);
+		}
+		
+		nh_private_.getParam(nodeName_+"/pll1",it);
+		if(it != config_.PLL1) {
+			usValue = (uint32_t)config_.PLL1;
+			status = BTAwriteRegister(handle_, MODULATION_FREQUENCY_1, &usValue, 0);
+				if (status != BTA_StatusOk)
+					ROS_WARN_STREAM("Error setting PLL1: " << status << "---------------");	
+				else
+					nh_private_.setParam(nodeName_+"/pll1", config_.PLL1);
+		}
 
-    if(config_.Read_reg) {
-    	try {
-      	std::stringstream ss;
-        it = strtoul(config_.Reg_addr.c_str(), NULL, 0);
-        status = BTAreadRegister(handle_, it, &usValue, 0);
-        if (status != BTA_StatusOk) {
-            ROS_WARN_STREAM("Could not read reg: " << config_.Reg_addr << ". Status: " << status);
-        }
-        ss<<"";
-        ss  << "0x"<< std::hex << usValue;
-        ss >> config_.Reg_val;
-        ROS_INFO_STREAM("Read register: " << config_.Reg_addr << ". Value: " << ss.str());
-    	} catch(const boost::bad_lexical_cast &) {
-        ROS_WARN_STREAM("Wrong address: " << config_.Reg_addr << " " << it);
-    	}
-    	config_.Read_reg = false;
-    }
-    if(config_.Write_reg) {
-      //std::stringstream ss;
-      it = strtoul(config_.Reg_addr.c_str(), NULL, 0);
-      usValue = strtoul(config_.Reg_val.c_str(), NULL, 0);
+		nh_private_.getParam(nodeName_+"/ampTreshold",it);
+		if(it != config_.Treshold_L) {
+			usValue = (uint32_t)config_.Treshold_L;
+			status = BTAwriteRegister(handle_, AMPLITUDE_TRESHOLD, &usValue, 0);
+				if (status != BTA_StatusOk)
+					ROS_WARN_STREAM("Error setting Amplitude Treshold: " << status << "---------------");
+				else
+					nh_private_.setParam(nodeName_+"/ampTreshold", config_.Treshold_L);
+		}
 
-      status = BTAwriteRegister(handle_, it, &usValue, 0);
-      if (status != BTA_StatusOk) {
-        ROS_WARN_STREAM("Could not write reg: " <<
-          config_.Reg_addr <<
-          " with val: " <<
-          config_.Reg_val <<
-          ". Status: " << status);
-      }
-      ROS_INFO_STREAM("Written register: " << config_.Reg_addr << ". Value: " << config_.Reg_val);
-      BTAgetIntegrationTime(handle_, &usValue);
-      config_.Integration_Time = usValue;
-      BTAsetFrameRate(handle_, fr);
-      config_.Frame_rate = fr;
-      config_.Write_reg = false;
+		nh_private_.getParam(nodeName_+"/saturationTreshold",it);
+		if(it != config_.Treshold_H) {
+			usValue = (uint32_t)config_.Treshold_H | ((uint32_t)config_.Treshold_H << 16);
+			ROS_DEBUG_STREAM("SETTING SATURATION: " << usValue);
+			status = BTAwriteRegister(handle_, SATURATION_TRESHOLD, &usValue, 0);
+				if (status != BTA_StatusOk)
+					ROS_WARN_STREAM("Error setting Saturation Treshold: " << status << "---------------");
+				else
+					nh_private_.setParam(nodeName_+"/saturationTreshold", config_.Treshold_H);
+		}
 
-    }
+		if(config_.Read_reg) {
+			try {
+				std::stringstream ss;
+				it = strtoul(config_.Reg_addr.c_str(), NULL, 0);
+				status = BTAreadRegister(handle_, it, &usValue, 0);
+				if (status != BTA_StatusOk) {
+					ROS_WARN_STREAM("Could not read reg: " << config_.Reg_addr << ". Status: " << status);
+				}
+				ss<<"";
+				ss  << "0x"<< std::hex << usValue;
+				ss >> config_.Reg_val;
+				ROS_INFO_STREAM("Read register: " << config_.Reg_addr << ". Value: " << ss.str());
+			} catch(const boost::bad_lexical_cast &) {
+				ROS_WARN_STREAM("Wrong address: " << config_.Reg_addr << " " << it);
+			}
+			config_.Read_reg = false;
+		}
+		if(config_.Write_reg) {
+			//std::stringstream ss;
+			it = strtoul(config_.Reg_addr.c_str(), NULL, 0);
+			usValue = strtoul(config_.Reg_val.c_str(), NULL, 0);
+
+			status = BTAwriteRegister(handle_, it, &usValue, 0);
+			if (status != BTA_StatusOk) {
+				ROS_WARN_STREAM("Could not write reg: " <<
+				config_.Reg_addr <<
+				" with val: " <<
+				config_.Reg_val <<
+				". Status: " << status);
+			}
+			ROS_INFO_STREAM("Written register: " << config_.Reg_addr << ". Value: " << config_.Reg_val);
+			BTAgetIntegrationTime(handle_, &usValue);
+			config_.Integration_Time = usValue;
+			BTAsetFrameRate(handle_, fr);
+			config_.Frame_rate = fr;
+			config_.Write_reg = false;
+
+		}
+
 		usValue = (uint32_t)config_.Filter;
 		status = BTAwriteRegister(handle_, BILATERAL_FILTER, &usValue, 0);
 		if (status != BTA_StatusOk) {
@@ -190,33 +305,33 @@ namespace bta_ros
 
 	}
 
-  size_t BtaRos::getDataSize(BTA_DataFormat dataFormat) {
-  	switch (dataFormat) {
-      case BTA_DataFormatUInt16:
-        return sizeof(uint16_t);
-        break;
-      case BTA_DataFormatSInt16:
-        return sizeof(int16_t);
-        break;
-      case BTA_DataFormatFloat32:
-        return sizeof(float);
-        break;
-    }
-  }
+	size_t BtaRos::getDataSize(BTA_DataFormat dataFormat) {
+		switch (dataFormat) {
+			case BTA_DataFormatUInt16:
+				return sizeof(uint16_t);
+				break;
+			case BTA_DataFormatSInt16:
+				return sizeof(int16_t);
+				break;
+			case BTA_DataFormatFloat32:
+				return sizeof(float);
+				break;
+		}
+	}
   
-  std::string BtaRos::getDataType(BTA_DataFormat dataFormat) {
-    switch (dataFormat) {
-      case BTA_DataFormatUInt16:
-        return sensor_msgs::image_encodings::TYPE_16UC1;
-        break;
-      case BTA_DataFormatSInt16:
-        return sensor_msgs::image_encodings::TYPE_16SC1;
-        break;
-      case BTA_DataFormatFloat32:
-        return sensor_msgs::image_encodings::TYPE_32FC1;
-        break;
-    }
-  }
+	std::string BtaRos::getDataType(BTA_DataFormat dataFormat) {
+		switch (dataFormat) {
+			case BTA_DataFormatUInt16:
+				return sensor_msgs::image_encodings::TYPE_16UC1;
+				break;
+			case BTA_DataFormatSInt16:
+				return sensor_msgs::image_encodings::TYPE_16SC1;
+				break;
+			case BTA_DataFormatFloat32:
+				return sensor_msgs::image_encodings::TYPE_32FC1;
+				break;
+		}
+	}
 
 	void BtaRos::publishData() 
 	{
@@ -226,175 +341,207 @@ namespace bta_ros
 		BTA_Frame *frame;
 		status = BTAgetFrame(handle_, &frame, 3000);
 		if (status != BTA_StatusOk) {
-   			return;
+			return;
 		}
 
-		ROS_DEBUG("		frameArrived FrameCounter %d", frame->frameCounter);
+		for (int i = 0; i < frame->channelsLen; i++)
+		{
+			//BTA_Channel *tmp_channel = frame->channels[i];
+			if (frame->channels[i]->id == BTA_ChannelIdDistance)
+			{
+				ROS_INFO("DISTANCE CHANNEL AVAILABLE...");
+			}
+		}
+
+		//ROS_DEBUG("		frameArrived - FrameCounter %d; FrameTime %dus; FrameTime %dns", frame->frameCounter, frame->timeStamp, frame->timeStamp/1000000);
 
 		BTA_DataFormat dataFormat;
 		BTA_Unit unit;
 		uint16_t xRes, yRes;
 		sensor_msgs::CameraInfoPtr ci_tof(new sensor_msgs::CameraInfo(cim_tof_.getCameraInfo()));
 		ci_tof->header.frame_id = nodeName_+"/tof_camera";
-		
-		
-	  void *distances;
-	  status = BTAgetDistances(frame, &distances, &dataFormat, &unit, &xRes, &yRes);
-	  if (status == BTA_StatusOk) {
-	    sensor_msgs::ImagePtr dis (new sensor_msgs::Image);
-	    dis->header.seq = frame->frameCounter;
-      dis->header.stamp.sec = frame->timeStamp;
-      dis->height = yRes;
-      dis->width = xRes;
-      dis->encoding = getDataType(dataFormat);
-      dis->step = yRes*getDataSize(dataFormat);
-      dis->data.resize(xRes*yRes*getDataSize(dataFormat));
-      memcpy ( &dis->data[0], distances, xRes*yRes*getDataSize(dataFormat) );
-            
-	    dis->header.frame_id = nodeName_+"/tof_camera";
-	    pub_dis_.publish(dis,ci_tof);
-	  }
-	
-	  bool ampOk = false;
-	  void *amplitudes;
-	  BTA_DataFormat amDataFormat;
-	  status = BTAgetAmplitudes(frame, &amplitudes, 
-	  							&amDataFormat, &unit, &xRes, &yRes);
-	  if (status == BTA_StatusOk) {
-	    sensor_msgs::ImagePtr amp (new sensor_msgs::Image);
-      amp->header.seq = frame->frameCounter;
-      amp->header.stamp.sec = frame->timeStamp;
-      amp->height = yRes;
-      amp->width = xRes;
-      amp->encoding = getDataType(amDataFormat);
-      amp->step = yRes*getDataSize(amDataFormat);
-      amp->data.resize(xRes*yRes*getDataSize(amDataFormat));
-      memcpy ( &amp->data[0], amplitudes, xRes*yRes*getDataSize(amDataFormat) );
+		ci_tof->header.seq = frame->frameCounter;
+		ci_tof->header.stamp.sec = (frame->timeStamp/1000000);
 
-	    amp->header.frame_id = nodeName_+"/tof_camera";
-	    pub_amp_.publish(amp,ci_tof);
-	    ampOk = true;
-	  }
 
-	void *xCoordinates, *yCoordinates, *zCoordinates;
-  status = BTAgetXYZcoordinates(frame, &xCoordinates, &yCoordinates, &zCoordinates, &dataFormat, &unit, &xRes, &yRes);
-  if (status == BTA_StatusOk) {
-    sensor_msgs::PointCloud2Ptr xyz (new sensor_msgs::PointCloud2);
-    pcl::PointCloud<pcl::PointXYZI> cloud;
-    if (dataFormat == BTA_DataFormatSInt16) {
-      short *xC, *yC, *zC;
-      xC = (short *)xCoordinates; 
-      yC = (short *)yCoordinates;
-      zC = (short *)zCoordinates;
-      
-      for (size_t i = 0; i < yRes*xRes; i++) {
-        pcl::PointXYZI temp_point;
-        temp_point.x = xC[i];
-        temp_point.y = yC[i];
-        temp_point.z = zC[i];
-        if (ampOk) {
-        	if(amDataFormat == BTA_DataFormatUInt16) {
-        		unsigned short *A;
-      			A = (unsigned short *)amplitudes;
-      			temp_point.intensity = A[i];
-        	}
-        	if(amDataFormat == BTA_DataFormatFloat32) {
-        		temp_point.intensity = ((float *)amplitudes)[i];
-        	}
-        } else
-        	temp_point.intensity = 255;
-        
-        cloud.push_back(temp_point);
-    	}
+		uint32_t *flags;
+		status = BTAgetFlags(frame, (void**)&flags, &dataFormat, &unit, &xRes, &yRes);
+		if (status != BTA_StatusOk) {
+			ROS_DEBUG("Cannot get flags: %d\n", status);
 		}
-    if (dataFormat == BTA_DataFormatFloat32) {
-    	float *xC, *yC, *zC;
-      xC = (float *)xCoordinates;
-      yC = (float *)yCoordinates;
-      zC = (float *)zCoordinates;
 
-      for (size_t i = 0; i < yRes*xRes; i++) {
-        pcl::PointXYZI temp_point;
-				temp_point.x = xC[i];
-				temp_point.y = yC[i];
-				temp_point.z = zC[i];
-			if (ampOk) {
-	      if(amDataFormat == BTA_DataFormatUInt16) {
-					unsigned short *A;
-					A = (unsigned short *)amplitudes; 
-					temp_point.intensity = A[i];
+		void *distances;
+		status = BTAgetDistances(frame, &distances, &dataFormat, &unit, &xRes, &yRes);
+		if (status == BTA_StatusOk) {
+			sensor_msgs::ImagePtr dis (new sensor_msgs::Image);
+			dis->header.seq = frame->frameCounter;
+			dis->header.stamp.sec = (frame->timeStamp/1000000);
+			dis->height = yRes;
+			dis->width = xRes;
+			dis->encoding = getDataType(dataFormat);
+			dis->step = xRes*getDataSize(dataFormat);
+			dis->data.resize(xRes*yRes*getDataSize(dataFormat));
+			memcpy ( &dis->data[0], distances, xRes*yRes*getDataSize(dataFormat) );
+
+			dis->header.frame_id = nodeName_+"/tof_camera";
+			pub_dis_.publish(dis,ci_tof);
+		}
+
+		bool ampOk = false;
+		void *amplitudes;
+		BTA_DataFormat amDataFormat;
+		status = BTAgetAmplitudes(frame, &amplitudes, &amDataFormat, &unit, &xRes, &yRes);
+		if (status == BTA_StatusOk) {
+			sensor_msgs::ImagePtr amp (new sensor_msgs::Image);
+			amp->header.seq = frame->frameCounter;
+			amp->header.stamp.sec = frame->timeStamp;
+			amp->height = yRes;
+			amp->width = xRes;
+			amp->encoding = getDataType(amDataFormat);
+			amp->step = yRes*getDataSize(amDataFormat);
+			amp->data.resize(xRes*yRes*getDataSize(amDataFormat));
+			memcpy ( &amp->data[0], amplitudes, xRes*yRes*getDataSize(amDataFormat) );
+
+			amp->header.frame_id = nodeName_+"/tof_camera";
+			pub_amp_.publish(amp,ci_tof);
+			ampOk = true;
+		}
+
+		void *xCoordinates, *yCoordinates, *zCoordinates;
+		status = BTAgetXYZcoordinates(frame, &xCoordinates, &yCoordinates, &zCoordinates, &dataFormat, &unit, &xRes, &yRes);
+		if (status == BTA_StatusOk) {
+			sensor_msgs::PointCloud2Ptr xyz (new sensor_msgs::PointCloud2);
+			pcl::PointCloud<pcl::PointXYZI> cloud;
+			if (dataFormat == BTA_DataFormatSInt16)
+			{
+				short *xC, *yC, *zC;
+				xC = (short *)xCoordinates; 
+				yC = (short *)yCoordinates;
+				zC = (short *)zCoordinates;
+
+				for (size_t i = 0; i < yRes*xRes; i++)
+				{
+					pcl::PointXYZI temp_point;
+					temp_point.x = xC[i];
+					temp_point.y = yC[i];
+					temp_point.z = zC[i];
+					if (ampOk) {
+						if(amDataFormat == BTA_DataFormatUInt16) {
+							unsigned short *A;
+							A = (unsigned short *)amplitudes;
+							temp_point.intensity = A[i];
+						}
+						if(amDataFormat == BTA_DataFormatFloat32) {
+							temp_point.intensity = ((float *)amplitudes)[i];
+						}
+					}
+					else
+					{
+						temp_point.intensity = 255;
+					}
+					
+					if (flags[i] == 0)
+					{
+						cloud.push_back(temp_point);
+					}
 				}
-      	if(amDataFormat == BTA_DataFormatFloat32) {
-      		temp_point.intensity = ((float *)amplitudes)[i];
-      	}
-     }
-      cloud.push_back(temp_point);
-     	     
-    	}
-		}
-    pcl::toROSMsg(cloud, *xyz);
-    
-    xyz->header.seq = frame->frameCounter;
-    xyz->header.stamp.sec = frame->timeStamp;
-    xyz->header.frame_id = nodeName_+"/tof_camera";
-    xyz->is_dense = true;
-    
-    //Keeping until resolving problem with rviz
-		/*
-    xyz->width = xRes;
-    xyz->height = yRes;
-    sensor_msgs::PointCloud2Modifier modifier(*xyz);
-    ROS_DEBUG_STREAM("MAL? " << unit);
-     
-    modifier.setPointCloud2Fields(3, "x", 1, sensor_msgs::PointField::INT16,
-                                      "y", 1, sensor_msgs::PointField::INT16,
-                                      "z", 1, sensor_msgs::PointField::INT16/*,
-                                      "intensity", 1, sensor_msgs::PointField::UINT16* /);
-    ROS_DEBUG_STREAM("MAL? " << modifier.size());
-    short *xC, *yC, *zC;
-    xC = (short *)xCoordinates;
-    yC = (short *)yCoordinates;
-    zC = (short *)zCoordinates;
-    std::vector<short> test;
-    for (size_t i = 0; i < yRes*xRes; i++) {
-      test.push_back(xC[i]);
-      test.push_back(yC[i]);
-      test.push_back(zC[i]);
-      //memcpy ( &xyz->data[i*xyz->point_step], &xCoordinates[i*getDataSize(dataFormat)], getDataSize(dataFormat) );
-      //memcpy ( &xyz->data[i*xyz->point_step+getDataSize(dataFormat) ], &yCoordinates[i*getDataSize(dataFormat)], getDataSize(dataFormat) );
-      //memcpy ( &xyz->data[i*xyz->point_step+2*getDataSize(dataFormat) ], &zCoordinates[i*getDataSize(dataFormat)], getDataSize(dataFormat) );
-      //memcpy ( &xyz->data[i*xyz->point_step+3*getDataSize(dataFormat)], &amplitudes[i*getDataSize(amDataFormat)], getDataSize(amDataFormat) );
-      //ROS_DEBUG_STREAM("ox: " << (short)xCoordinates[i*getDataSize(dataFormat)] << " y: " << (short)yCoordinates[i*getDataSize(dataFormat)] << " z: " << (short)zCoordinates[i*getDataSize(dataFormat)]);
-      //ROS_DEBUG_STREAM("x: " << (short)xyz->data[i*xyz->point_step] << " y: " << (short)xyz->data[i*xyz->point_step+getDataSize(dataFormat) ] << " z: " << (short)xyz->data[i*xyz->point_step+2*getDataSize(dataFormat) ]);
-   }
-   memcpy ( &xyz->data[0], &test[0], test.size());
-   ROS_DEBUG_STREAM("MAL? " << modifier.size());
-	*/
+			}
+			if (dataFormat == BTA_DataFormatFloat32)
+			{
+				float *xC, *yC, *zC;
+				xC = (float *)xCoordinates;
+				yC = (float *)yCoordinates;
+				zC = (float *)zCoordinates;
 
-    pub_xyz_.publish(xyz);
-    } 
-	
+				for (size_t i = 0; i < yRes*xRes; i++)
+				{
+					pcl::PointXYZI temp_point;
+					temp_point.x = xC[i];
+					temp_point.y = yC[i];
+					temp_point.z = zC[i];
+					if (ampOk)
+					{
+						if(amDataFormat == BTA_DataFormatUInt16)
+						{
+							unsigned short *A;
+							A = (unsigned short *)amplitudes; 
+							temp_point.intensity = A[i];
+						}
+						if(amDataFormat == BTA_DataFormatFloat32)
+						{
+							temp_point.intensity = ((float *)amplitudes)[i];
+						}
+					}
+					if (flags[i] == 0)
+					{
+						cloud.push_back(temp_point);
+					}
+
+				}
+			}
+			pcl::toROSMsg(cloud, *xyz);
+
+			xyz->header.seq = frame->frameCounter;
+			xyz->header.stamp.sec = (frame->timeStamp/1000000);
+			xyz->header.frame_id = nodeName_+"/";
+			xyz->is_dense = true;
+
+			//Keeping until resolving problem with rviz
+			/*
+			xyz->width = xRes;
+			xyz->height = yRes;
+			sensor_msgs::PointCloud2Modifier modifier(*xyz);
+			ROS_DEBUG_STREAM("MAL? " << unit);
+
+			modifier.setPointCloud2Fields(3, "x", 1, sensor_msgs::PointField::INT16,
+						  "y", 1, sensor_msgs::PointField::INT16,
+						  "z", 1, sensor_msgs::PointField::INT16/*,
+						  "intensity", 1, sensor_msgs::PointField::UINT16* /);
+			ROS_DEBUG_STREAM("MAL? " << modifier.size());
+			short *xC, *yC, *zC;
+			xC = (short *)xCoordinates;
+			yC = (short *)yCoordinates;
+			zC = (short *)zCoordinates;
+			std::vector<short> test;
+			for (size_t i = 0; i < yRes*xRes; i++) {
+			test.push_back(xC[i]);
+			test.push_back(yC[i]);
+			test.push_back(zC[i]);
+			//memcpy ( &xyz->data[i*xyz->point_step], &xCoordinates[i*getDataSize(dataFormat)], getDataSize(dataFormat) );
+			//memcpy ( &xyz->data[i*xyz->point_step+getDataSize(dataFormat) ], &yCoordinates[i*getDataSize(dataFormat)], getDataSize(dataFormat) );
+			//memcpy ( &xyz->data[i*xyz->point_step+2*getDataSize(dataFormat) ], &zCoordinates[i*getDataSize(dataFormat)], getDataSize(dataFormat) );
+			//memcpy ( &xyz->data[i*xyz->point_step+3*getDataSize(dataFormat)], &amplitudes[i*getDataSize(amDataFormat)], getDataSize(amDataFormat) );
+			//ROS_DEBUG_STREAM("ox: " << (short)xCoordinates[i*getDataSize(dataFormat)] << " y: " << (short)yCoordinates[i*getDataSize(dataFormat)] << " z: " << (short)zCoordinates[i*getDataSize(dataFormat)]);
+			//ROS_DEBUG_STREAM("x: " << (short)xyz->data[i*xyz->point_step] << " y: " << (short)xyz->data[i*xyz->point_step+getDataSize(dataFormat) ] << " z: " << (short)xyz->data[i*xyz->point_step+2*getDataSize(dataFormat) ]);
+			}
+			memcpy ( &xyz->data[0], &test[0], test.size());
+			ROS_DEBUG_STREAM("MAL? " << modifier.size());
+			*/
+
+			pub_xyz_.publish(xyz);
+		} // end loop
+
 		BTAfreeFrame(&frame);
 
-	}
+	}// end publish Data
 	
-  /*void BtaRos::ampCb(const sensor_msgs::ImagePtr& amp)
-  {
-  	sensor_msgs::CameraInfoPtr ci_tof(new sensor_msgs::CameraInfo(cim_tof_.getCameraInfo()));
+	/*void BtaRos::ampCb(const sensor_msgs::ImagePtr& amp)
+	{
+	sensor_msgs::CameraInfoPtr ci_tof(new sensor_msgs::CameraInfo(cim_tof_.getCameraInfo()));
 		ci_tof->header.frame_id = nodeName_+"/tof_camera";
 		amp->header.frame_id = nodeName_+"/tof_camera";
-	
+
 		pub_amp_.publish(amp,ci_tof);
-  }
-    
-  void BtaRos::disCb(const sensor_msgs::ImagePtr& dis)
-  {
-  	sensor_msgs::CameraInfoPtr ci_tof(new sensor_msgs::CameraInfo(cim_tof_.getCameraInfo()));
+	}
+
+	void BtaRos::disCb(const sensor_msgs::ImagePtr& dis)
+	{
+	sensor_msgs::CameraInfoPtr ci_tof(new sensor_msgs::CameraInfo(cim_tof_.getCameraInfo()));
 		ci_tof->header.frame_id = nodeName_+"/tof_camera";
 		dis->header.frame_id = nodeName_+"/tof_camera";
-	
+
 		pub_dis_.publish(dis,ci_tof);
-  }*/
+	}*/
 
 	void BtaRos::parseConfig() {
 		int iusValue;

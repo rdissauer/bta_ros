@@ -29,3 +29,7 @@ verbosity: 5
 #frameRate: 15
 #integrationTime: 1500
 
+#pll0:
+#pll1:
+#ampTreshold:
+#saturationTreshold:
